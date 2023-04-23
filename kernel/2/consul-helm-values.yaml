@@ -1,0 +1,14 @@
+global:
+  enabled: false
+server:
+  enabled: true
+  replicas: 2
+  storage: 256Mi
+dns:
+  enabled: true
+ui:
+  enabled: true
+connectInject:
+  enabled: false
+tests:
+  enabled: true

@@ -1,0 +1,426 @@
+---
+# Source: consul/templates/server-disruptionbudget.yaml
+# PodDisruptionBudget to prevent degrading the server cluster through
+# voluntary cluster changes.
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: foobar-consul-server
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: server
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: consul
+      release: "foobar"
+      component: server
+---
+# Source: consul/templates/server-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: foobar-consul-server
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: server
+---
+# Source: consul/templates/server-config-configmap.yaml
+# StatefulSet to run the actual Consul server cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: foobar-consul-server-config
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: server
+data:
+  server.json: |
+    {
+      "bind_addr": "0.0.0.0",
+      "bootstrap_expect": 2,
+      "client_addr": "0.0.0.0",
+      "connect": {
+        "enabled": true
+      },
+      "datacenter": "dc1",
+      "data_dir": "/consul/data",
+      "domain": "consul",
+      "ports": {
+        "grpc": 8502,
+        "grpc_tls": -1,
+        "serf_lan": 8301
+      },
+      "recursors": [],
+      "retry_join": ["foobar-consul-server.default.svc:8301"], # NOTE nope
+      "server": true
+    }
+  extra-from-values.json: |-
+    {}
+    
+  ui-config.json: |-
+    {
+      "ui_config": {
+        "enabled": true
+      }
+    }
+  central-config.json: |-
+    {
+      "enable_central_service_config": true
+    }
+---
+# Source: consul/templates/server-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: foobar-consul-server
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: server
+rules: []
+---
+# Source: consul/templates/server-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: foobar-consul-server
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: foobar-consul-server
+subjects:
+  - kind: ServiceAccount
+    name: foobar-consul-server
+---
+# Source: consul/templates/dns-service.yaml
+# Service for Consul DNS.
+apiVersion: v1
+kind: Service
+metadata:
+  name: foobar-consul-dns
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: dns
+spec:
+  type: ClusterIP
+  ports:
+    - name: dns-tcp
+      port: 53
+      protocol: "TCP"
+      targetPort: dns-tcp
+    - name: dns-udp
+      port: 53
+      protocol: "UDP"
+      targetPort: dns-udp
+  selector:
+    app: consul
+    release: "foobar"
+    hasDNS: "true"
+---
+# Source: consul/templates/server-service.yaml
+# Headless service for Consul server DNS entries. This service should only
+# point to Consul servers. For access to an agent, one should assume that
+# the agent is installed locally on the node and the NODE_IP should be used.
+# If the node can't run a Consul agent, then this service can be used to
+# communicate directly to a server agent.
+apiVersion: v1
+kind: Service
+metadata:
+  name: foobar-consul-server
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: server
+  annotations:
+spec:
+  clusterIP: None
+  # We want the servers to become available even if they're not ready
+  # since this DNS is also used for join operations.
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 8500
+      targetPort: 8500
+    - name: grpc
+      port: 8502
+      targetPort: 8502
+    - name: serflan-tcp
+      protocol: "TCP"
+      port: 8301
+      targetPort: 8301
+    - name: serflan-udp
+      protocol: "UDP"
+      port: 8301
+      targetPort: 8301
+    - name: serfwan-tcp
+      protocol: "TCP"
+      port: 8302
+      targetPort: 8302
+    - name: serfwan-udp
+      protocol: "UDP"
+      port: 8302
+      targetPort: 8302
+    - name: server
+      port: 8300
+      targetPort: 8300
+    - name: dns-tcp
+      protocol: "TCP"
+      port: 8600
+      targetPort: dns-tcp
+    - name: dns-udp
+      protocol: "UDP"
+      port: 8600
+      targetPort: dns-udp
+  selector:
+    app: consul
+    release: "foobar"
+    component: server
+---
+# Source: consul/templates/ui-service.yaml
+# UI Service for Consul Server
+apiVersion: v1
+kind: Service
+metadata:
+  name: foobar-consul-ui
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: ui
+spec:
+  selector:
+    app: consul
+    release: "foobar"
+    component: server
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8500
+---
+# Source: consul/templates/server-statefulset.yaml
+# StatefulSet to run the actual Consul server cluster.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: foobar-consul-server
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+    component: server
+spec:
+  serviceName: foobar-consul-server
+  podManagementPolicy: Parallel
+  replicas: 2
+  selector:
+    matchLabels:
+      app: consul
+      chart: consul-helm
+      release: foobar
+      component: server
+      hasDNS: "true"
+  template:
+    metadata:
+      labels:
+        app: consul
+        chart: consul-helm
+        release: foobar
+        component: server
+        hasDNS: "true"
+      annotations:
+        "consul.hashicorp.com/connect-inject": "false"
+        "consul.hashicorp.com/config-checksum": 1c6db95266a26efbced625a8889a4ddf8d8d68c08bd5a4daf7b188cc2e210a9c
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: consul
+                  release: "foobar"
+                  component: server
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: foobar-consul-server
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 100
+      volumes:
+        - name: config
+          configMap:
+            name: foobar-consul-server-config
+        - name: extra-config
+          emptyDir: {}
+      containers:
+        - name: consul
+          image: "hashicorp/consul:1.15.0"
+          env:
+            - name: ADVERTISE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: CONSUL_DISABLE_PERM_MGMT
+              value: "true"
+            
+          command:
+            - "/bin/sh"
+            - "-ec"
+            - |
+
+              cp /consul/config/extra-from-values.json /consul/extra-config/extra-from-values.json
+              [ -n "${HOST_IP}" ] && sed -Ei "s|HOST_IP|${HOST_IP?}|g" /consul/extra-config/extra-from-values.json
+              [ -n "${POD_IP}" ] && sed -Ei "s|POD_IP|${POD_IP?}|g" /consul/extra-config/extra-from-values.json
+              [ -n "${HOSTNAME}" ] && sed -Ei "s|HOSTNAME|${HOSTNAME?}|g" /consul/extra-config/extra-from-values.json
+
+              exec /usr/local/bin/docker-entrypoint.sh consul agent \
+                -advertise="${ADVERTISE_IP}" \
+                -config-dir=/consul/config \
+                -config-file=/consul/extra-config/extra-from-values.json
+          volumeMounts:
+            - name: data-default
+              mountPath: /consul/data
+            - name: config
+              mountPath: /consul/config
+            - name: extra-config
+              mountPath: /consul/extra-config
+          ports:
+            - name: http
+              containerPort: 8500
+            - name: grpc
+              containerPort: 8502
+              protocol: "TCP"
+            - name: serflan-tcp
+              containerPort: 8301
+              protocol: "TCP"
+            - name: serflan-udp
+              containerPort: 8301
+              protocol: "UDP"
+            - name: serfwan-tcp
+              containerPort: 8302
+              protocol: "TCP"
+            - name: serfwan-udp
+              containerPort: 8302
+              protocol: "UDP"
+            - name: server
+              containerPort: 8300
+            - name: dns-tcp
+              containerPort: 8600
+              protocol: "TCP"
+            - name: dns-udp
+              containerPort: 8600
+              protocol: "UDP"
+          readinessProbe:
+            # NOTE(mitchellh): when our HTTP status endpoints support the
+            # proper status codes, we should switch to that. This is temporary.
+            exec:
+              command:
+                - "/bin/sh"
+                - "-ec"
+                - |
+                  curl http://127.0.0.1:8500/v1/status/leader \
+                  2>/dev/null | grep -E '".+"'
+            failureThreshold: 2
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          securityContext:
+            null
+  volumeClaimTemplates:
+    - metadata:
+        name: data-default
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 256Mi
+---
+# Source: consul/templates/tests/test-runner.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "foobar-consul-test"
+  namespace: default
+  labels:
+    app: consul
+    chart: consul-helm
+    heritage: Helm
+    release: foobar
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: consul-test
+      image: "hashicorp/consul:1.15.0"
+      env:
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: CONSUL_HTTP_ADDR
+          value: http://$(HOST_IP):8500
+      command:
+        - "/bin/sh"
+        - "-ec"
+        - |
+            consul members | tee members.txt
+            if [ $(grep -c consul-server members.txt) != $(grep consul-server members.txt | grep -c alive) ]
+            then
+              echo "Failed because not all consul servers are available"
+              exit 1
+            fi
+
+  restartPolicy: Never

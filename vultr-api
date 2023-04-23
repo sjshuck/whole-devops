@@ -1,0 +1,10 @@
+#! /usr/bin/env bash
+#
+# Pass all args to curl except for the last, which is the HTTP API path.
+
+exec curl -fsSL \
+    -H "Authorization: Bearer ${VULTR_API_KEY}" \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json' \
+    "${@: 0: -1}" \
+    "https://api.vultr.com/v2/${@: -1}"

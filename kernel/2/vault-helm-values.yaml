@@ -1,0 +1,37 @@
+global:
+  enabled: false
+
+server:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+standalone:
+  enabled: false
+  config: |
+    # https://developer.hashicorp.com/vault/docs/configuration#parameters
+    storage "consul" {
+      # https://developer.hashicorp.com/vault/docs/configuration/storage
+      address = "<consul.address:port>"
+      path = "???" # Path of Vault KV store in Consul?
+    }
+
+    listener "name-of-listener" {
+      # required - what is it?
+    }
+
+    # maybe used for HA - ????
+    api_addr = ""
+    cluster_addr = ""
+
+ha:
+  enabled: true
+  replicas: 2
+
+ui:
+  enabled: true

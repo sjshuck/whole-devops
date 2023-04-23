@@ -1,0 +1,6 @@
+dev/
+
+**/.terraform*
+kernel/tfstate
+kernel/kubeconfig.yaml
+kernel/vault-init.json
