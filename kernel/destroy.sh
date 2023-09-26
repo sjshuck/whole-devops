@@ -8,7 +8,7 @@ export TF_PLUGIN_CACHE_DIR="${PWD}/.terraform.d/plugin-cache"
 for d in 2 1; do
     cd "$d"
         terraform init -backend-config="path=../tfstate/${d}.tfstate"
-        terraform destroy -auto-approve
+        terraform destroy -auto-approve || true # FIXME
     cd -
 done
 
