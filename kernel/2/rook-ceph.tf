@@ -95,6 +95,9 @@ resource "helm_release" "rook-ceph-operator" {
 
   name      = "rook-ceph-operator"
   namespace = kubernetes_namespace_v1.rook-ceph.metadata[0].name
+  values    = [yamlencode({
+    allowLoopDevices = true
+  })]
 }
 
 resource "helm_release" "rook-ceph-cluster" {
