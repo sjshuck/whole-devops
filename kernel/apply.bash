@@ -16,5 +16,5 @@ cd -
 cd 2
     terraform init -backend-config='path=../tfstate/2.tfstate'
     terraform apply -auto-approve
-    ./vault-unseal.sh
+    ./vault-unseal.bash
 cd -
