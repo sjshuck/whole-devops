@@ -33,7 +33,7 @@ resource "kubernetes_job_v1" "rook-ceph-host-setup" {
       metadata {}
       spec {
         topology_spread_constraint {
-          topology_key = "kubernetes.io/hostname"
+          topology_key       = "kubernetes.io/hostname"
           when_unsatisfiable = "DoNotSchedule"
         }
 
@@ -88,14 +88,6 @@ resource "kubernetes_job_v1" "rook-ceph-host-setup" {
   }
 }
 
-locals {
-  // The provider will not pull new versions of the charts unless this value
-  // changes.
-  // We want to declare the tiny version number so we can reason about any bugs
-  // that arise.
-  rook-ceph-version = "v1.11.7"
-}
-
 resource "helm_release" "rook-ceph-operator" {
   repository = "https://charts.rook.io/release"
   chart      = "rook-ceph"
@@ -115,7 +107,7 @@ resource "helm_release" "rook-ceph-cluster" {
   values = [yamlencode({
     cephClusterSpec = {
       cephVersion = {
-        image = "quay.io/ceph/ceph:v17.2.6"
+        image = "quay.io/ceph/ceph:${local.ceph-version}"
       }
 
       // TODO I'm not sure if this is used for actual user data.  Doubtful but

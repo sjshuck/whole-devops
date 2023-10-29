@@ -1,6 +1,6 @@
 resource "vultr_kubernetes" "kernel" {
   region  = local.region
-  version = "v1.26.2+2"
+  version = local.vke-version
   label   = "kernel"
 
   node_pools {

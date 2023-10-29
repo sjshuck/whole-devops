@@ -196,7 +196,7 @@ resource "kubernetes_stateful_set_v1" "vault" {
 
         container {
           name              = "vault"
-          image             = "hashicorp/vault:1.12.1"
+          image             = "hashicorp/vault:${local.vault-version}"
           image_pull_policy = "IfNotPresent"
 
           resources {

@@ -254,7 +254,7 @@ resource "kubernetes_stateful_set_v1" "consul" {
 
         container {
           name  = "consul"
-          image = "hashicorp/consul:1.15.0"
+          image = "hashicorp/consul:${local.consul-version}"
 
           dynamic "env" {
             for_each = {
