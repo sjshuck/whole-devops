@@ -20,24 +20,28 @@ locals {
   }
 }
 
-resource "kubernetes_job_v1" "rook-ceph-host-setup" {
+resource "kubernetes_daemon_set_v1" "rook-ceph-host-setup" {
   metadata {
     name      = "host-setup"
     namespace = kubernetes_namespace_v1.rook-ceph.metadata[0].name
   }
 
   spec {
-    parallelism = 3
+    selector {
+      match_labels = {
+        app = "host-setup"
+      }
+    }
 
     template {
-      metadata {}
-      spec {
-        topology_spread_constraint {
-          topology_key       = "kubernetes.io/hostname"
-          when_unsatisfiable = "DoNotSchedule"
+      metadata {
+        labels = {
+          app = "host-setup"
         }
+      }
 
-        container {
+      spec {
+        init_container {
           image = "ubuntu:jammy"
           name  = "host-setup"
 
@@ -83,6 +87,11 @@ resource "kubernetes_job_v1" "rook-ceph-host-setup" {
             }
           }
         }
+
+        container {
+          image = "registry.k8s.io/pause"
+          name  = "pause"
+        }
       }
     }
   }
@@ -95,7 +104,7 @@ resource "helm_release" "rook-ceph-operator" {
 
   name      = "rook-ceph-operator"
   namespace = kubernetes_namespace_v1.rook-ceph.metadata[0].name
-  values    = [yamlencode({
+  values = [yamlencode({
     allowLoopDevices = true
   })]
 }
@@ -184,8 +193,10 @@ resource "helm_release" "rook-ceph-cluster" {
         mgr = "system-cluster-critical"
       }
       storage = {
-        useAllNodes      = true
-        devicePathFilter = "^\\Q${local.rook-ceph-block-dev}\\E$" // RE2 literal
+        useAllNodes = true
+        devices = [{
+          name = local.rook-ceph-block-dev
+        }]
       }
       disruptionManagement = {
         managePodBudgets = true
@@ -236,6 +247,6 @@ resource "helm_release" "rook-ceph-cluster" {
 
   depends_on = [
     helm_release.rook-ceph-operator,
-    kubernetes_job_v1.rook-ceph-host-setup,
+    kubernetes_daemon_set_v1.rook-ceph-host-setup,
   ]
 }

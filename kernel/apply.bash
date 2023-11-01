@@ -11,6 +11,7 @@ cd 1
     terraform init -backend-config='path=../tfstate/1.tfstate'
     terraform apply -auto-approve
     terraform output -raw kubeconfig >../kubeconfig.yaml
+    ./await-vke.bash
 cd -
 
 cd 2
