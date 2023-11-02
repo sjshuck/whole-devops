@@ -4,7 +4,7 @@ set -e -o pipefail
 err="$(mktemp)"
 trap 'rm "$err"' EXIT
 
-time_to_wait=60
+time_to_wait=120
 echo >&2 "Waiting ${time_to_wait} seconds for Kubernetes nodes to be ready..."
 
 start_time="$(date +%s)"
