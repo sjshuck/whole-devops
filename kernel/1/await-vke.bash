@@ -1,18 +1,15 @@
 #! /usr/bin/env bash
 set -e -o pipefail
 
-err="$(mktemp)"
-trap 'rm "$err"' EXIT
-
-time_to_wait=120
+time_to_wait=180
 echo >&2 "Waiting ${time_to_wait} seconds for Kubernetes nodes to be ready..."
 
 start_time="$(date +%s)"
 while true; do
-    sleep 2
+    sleep 5
 
     if ! not_ready_nodes="$(
-        kubectl --kubeconfig ../kubeconfig.yaml get nodes 2>>"$err" | awk '
+        kubectl --kubeconfig ../kubeconfig.yaml get nodes 2>/dev/null | awk '
             {
                 if ($2 == "NotReady") { nodes = nodes sep $1; sep = ", " }
             }
@@ -28,10 +25,6 @@ while true; do
     fi
 
     if (( $(date +%s) > start_time + time_to_wait )); then
-        if [[ -s $err ]]; then
-            echo >&2 "kubectl error(s):"
-            uniq >&2 <"$err"
-        fi
         exit 1
     fi
 done
